@@ -1,45 +1,76 @@
+"""
+Base classes of all dataset of temporal action proposal.
+"""
+
 import os
 from PIL import Image
 import numpy as np
 import torch, torchvision
+from torch.utils.data import Dataset
 from typing import List, Tuple, Iterable
 
 
 class AnnotationRecord:
-
+    """
+    The data structure of an annotation. It contains the start time and end time of the proposal, and its' class label.
+    """
     def __init__(self, start_time, end_time, class_):
+        """
+
+        :param start_time:
+        :param end_time:
+        :param class_:
+        """
         self.start_time = start_time
         self.end_time = end_time
         self.class_ = class_
 
 
 class VideoRecord:
+    """
+    The datastructure of a video.
+    """
 
     def __init__(self, video_name: str = '', frame_path: str = '', duration: int = 0, fps: float = 0,
-                 proposals: List[AnnotationRecord] = None):
+                 annotations: List[AnnotationRecord] = None, url: str = ''):
         self.video_name = video_name
         self.frame_path = frame_path
         self.duration = duration
         self.fps = fps
-        self.proposals = proposals
+        self.annotations = annotations
+        self.url = url
 
 
-class TemporalActionProposalDataset(torch.utils.Dataset):
+class VideoRecordHandler:
+    """
+    Base class of the video record handler. You must implement the __call__ method, so that we can handle different
+    type of features of a dataset.
+    """
 
-    def __init__(self):
+    def __call__(self, video_record: VideoRecord):
+        raise NotImplementedError
+
+
+class TemporalActionProposalDataset(Dataset):
+    """
+    Base class of a temporal action proposal dataset. You must implement
+    """
+    def __init__(self, video_record_handler: VideoRecordHandler):
         super(TemporalActionProposalDataset, self).__init__()
-        self.video_records = self._load_video_records()
+        self._video_records = self._load_video_records()
+        self._video_record_handler = video_record_handler
 
     def __len__(self):
-        return len(self.video_records)
+        return len(self._video_records)
 
     def __getitem__(self, idx):
-        pass
+        return self._video_record_handler(self._video_records[idx])
 
     def _load_video_records(self) -> List[VideoRecord]:
-        """Load your video records in this method and return it.
+        """
+        Overwrite this function to load different dataset.
 
-        :return:
+        :return: The list of video record.
         """
         raise NotImplementedError
 
@@ -52,7 +83,7 @@ class TemporalActionProposalDataset(torch.utils.Dataset):
         :return:
         """
 
-        frame_path = self.video_records[idx].frame_path
+        frame_path = self._video_records[idx].frame_path
         img_paths = [os.path.join(frame_path, "{}_{}".format(modality, x)) for x in ranges]
         images = []
         for img_path in img_paths:
