@@ -36,7 +36,7 @@ class ActivityNetDataset(TemporalActionProposalDataset):
                 AnnotationRecord(*proposal['segment'], proposal['label']) for proposal in video_info['annotations']
             ]
             video_record = VideoRecord(video_name, '',
-                                       video_info['duration_second'],
+                                       video_info['duration_second'] * video_info['feature_frame'] / video_info['duration_frame'],
                                        video_info['feature_frame'] / video_info['duration_second'],
                                        proposals,
                                        'https://www.youtube.com/watch?v=' + video_name[2:],
@@ -75,7 +75,6 @@ class BSNVideoRecordHandler(VideoRecordHandler):
     def __call__(self, video_record: VideoRecord):
         csv_file = os.path.join(self._csv_path, video_record.video_name + '.csv')
         df = pd.read_csv(csv_file)
-
         feature: torch.Tensor = torch.tensor(df.values, dtype=torch.float)
 
         # 0,1,2 represent for start, actioness, end.
@@ -89,25 +88,31 @@ class BSNVideoRecordHandler(VideoRecordHandler):
             end_feature_idx = np.clip(end_feature_idx, 0, self._sequence_length-1)
 
             # handle proposal
-            if end_feature_idx >= start_feature_idx:
+            if end_feature_idx > start_feature_idx:
                 # 1. handle actionness
-                proposals[1, int(start_feature_idx):int(end_feature_idx + 1)] = 1
-                proposals[1, int(start_feature_idx)] = int(start_feature_idx) + 1 - start_feature_idx
-                proposals[1, int(end_feature_idx)] = end_feature_idx - int(end_feature_idx)
+                proposals[1, int(start_feature_idx+1):int(end_feature_idx)] = 1
+                proposals[1, int(start_feature_idx)] = max(proposals[1, int(start_feature_idx)],
+                                                           int(start_feature_idx) + 1 - start_feature_idx)
+                proposals[1, int(end_feature_idx)] = max(proposals[1, int(end_feature_idx)],
+                                                         end_feature_idx - int(end_feature_idx))
 
                 # 2. handle boundary
-                boundary_range = (end_feature_idx - start_feature_idx) / 10
+                boundary_range = (end_feature_idx - start_feature_idx) / 20
 
                 start_left_boundary = np.clip(start_feature_idx - boundary_range, 0, self._sequence_length-1)
                 start_right_boundary = np.clip(start_feature_idx + boundary_range, 0, self._sequence_length-1)
-                proposals[0, int(start_left_boundary):int(start_right_boundary)] = 1
-                proposals[0, int(start_left_boundary)] = int(start_left_boundary) + 1 - start_left_boundary
-                proposals[0, int(start_right_boundary)] = start_right_boundary - int(start_right_boundary)
+                proposals[0, int(start_left_boundary+1):int(start_right_boundary)] = 1
+                proposals[0, int(start_left_boundary)] = max(proposals[0, int(start_left_boundary)],
+                                                               int(start_left_boundary) + 1 - start_left_boundary)
+                proposals[0, int(start_right_boundary)] = max(proposals[0, int(start_right_boundary)],
+                                                              start_right_boundary - int(start_right_boundary))
 
                 end_left_boundary = np.clip(end_feature_idx - boundary_range, 0, self._sequence_length - 1)
                 end_right_boundary = np.clip(end_feature_idx + boundary_range, 0, self._sequence_length - 1)
-                proposals[2, int(end_left_boundary):int(end_right_boundary)] = 1
-                proposals[2, int(end_left_boundary)] = int(end_left_boundary) + 1 - end_left_boundary
-                proposals[2, int(end_right_boundary)] = end_right_boundary - int(end_right_boundary)
+                proposals[2, int(end_left_boundary+1):int(end_right_boundary)] = 1
+                proposals[2, int(end_left_boundary)] = max(proposals[2, int(end_left_boundary)],
+                                                           int(end_left_boundary) + 1 - end_left_boundary)
+                proposals[2, int(end_right_boundary)] = max(proposals[2, int(end_right_boundary)],
+                                                            end_right_boundary - int(end_right_boundary))
 
         return feature, proposals
