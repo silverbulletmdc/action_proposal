@@ -58,8 +58,8 @@ class TemporalActionProposalDataset(Dataset):
     """
     def __init__(self, video_record_handler: VideoRecordHandler):
         super(TemporalActionProposalDataset, self).__init__()
-        self._video_records = self._load_video_records()
         self._video_record_handler = video_record_handler
+        self._video_records = self._load_video_records()
 
     def __len__(self):
         return len(self._video_records)

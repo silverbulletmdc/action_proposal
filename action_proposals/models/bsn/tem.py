@@ -30,7 +30,7 @@ class Tem(Module):
         """
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
-        output = 0.1 * F.relu(self.conv3(x))
+        output = torch.sigmoid(0.1 * self.conv3(x))
 
         return output
 
@@ -67,15 +67,15 @@ class TemLoss(Module):
             - num_positive: :math:`(N, 1)`
             - ratio: :math:`(N, 1)`, where :math:`ratio=num_entries/num_positive`
         """
-        pmask: torch.Tensor = torch.tensor(gt_scores > 0.5, dtype=torch.float)
-        num_positive = pmask.sum(1)
-        num_entries = pmask.shape[1]
+        pmask: torch.Tensor = (gt_scores >= 0.5).type(gt_scores.dtype)
+        num_positive = pmask.sum()
+        num_entries = pmask.shape[0] * pmask.shape[1]
         ratio = num_entries / num_positive
         coef_0: torch.Tensor = 0.5 * ratio / (ratio - 1)
         coef_1 = coef_0 * (ratio - 1)
-        coef_0 = coef_0.squeeze(1).expand(1, pmask.shape[1])
-        coef_1 = coef_1.squeeze(1).expand(1, pmask.shape[1])
-        loss = torch.matmul(coef_1, pmask) #* pred_anchors.log() + torch.bmm(coef_0, (1 - pmask)) * torch.log(1.0 - pred_anchors)
-        loss = -torch.mean(loss, 1)
+        # coef_0 = coef_0.unsqueeze(1).expand(*pmask.shape)
+        # coef_1 = coef_1.unsqueeze(1).expand(*pmask.shape)
+        loss = coef_1 * pmask * pred_anchors.log() + coef_0 * (1 - pmask) * torch.log(1.0 - pred_anchors)
+        loss = -torch.mean(loss)
 
         return loss, num_positive, ratio
