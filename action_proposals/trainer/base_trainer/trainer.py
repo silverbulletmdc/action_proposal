@@ -1,3 +1,5 @@
+from typing import Tuple
+
 from action_proposals.models.bsn import Tem, TemLoss
 from torch.utils.data import DataLoader, Dataset
 from torch.optim import Optimizer
@@ -16,13 +18,13 @@ class Trainer:
         self.cfg = self._parser.parse_args()
         self.epochs: int = self.cfg.epochs
 
-        self.data_loader = self._get_dataloader()
+        self.data_loaders = self._get_dataloaders()
         self.optimizer:Optimizer = None
 
     def train(self):
         self.optimizer = self._get_optimizer()
         for epoch in range(self.epochs):
-            self._train_one_epoch(self.data_loader, epoch, self.optimizer)
+            self._train_one_epoch(self.data_loaders, epoch, self.optimizer)
 
     def _add_config(self):
         self._parser.add_argument("--epochs", type=int, default=4)
@@ -41,19 +43,19 @@ class Trainer:
         """
         raise NotImplementedError
 
-    def _get_dataloader(self) -> DataLoader:
+    def _get_dataloaders(self) -> Tuple[DataLoader, DataLoader]:
         r"""Get dataloader. This method will be called after argument parsing in `self.__init__()` .
         Do the data augmentation and construct dataloader in this method.
 
-        :return: Dataset.
+        :return: Train dataloader and validation dataloader.
         """
         raise NotImplementedError
 
-    def _train_one_epoch(self, data_loader: DataLoader, epoch: int, optimizer: Optimizer):
+    def _train_one_epoch(self, data_loaders: Tuple[DataLoader, DataLoader], epoch: int, optimizer: Optimizer):
         r"""
         Train one epoch. This method will be called periodically in self.train().
 
-        :param data_loader: data loader
+        :param data_loaders: train data loader and validation data loader.
         :param epoch: epoch
         :return: None
         """

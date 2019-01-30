@@ -1,9 +1,16 @@
+from glob import glob
+import re
+import os
+
+from typing import Tuple
+import torch
 from torch.utils.data import DataLoader
 from torch.optim import Optimizer, Adam
 from action_proposals.trainer import Trainer
 from action_proposals.dataset.activitynet_dataset import ActivityNetDataset
 
 from action_proposals.models.bsn import Tem, TemLoss
+from action_proposals.utils import Statistic
 
 
 class BSNTrainer(Trainer):
@@ -15,8 +22,9 @@ class BSNTrainer(Trainer):
     def __init__(self):
         super(BSNTrainer, self).__init__()
         self.model = Tem(self.cfg.input_features)
-        self.model = self.model.cuda()
         self.loss = TemLoss()
+
+        self.model = self.model.cuda()
 
     def _add_user_config(self):
         self._parser.add_argument("--input_features", type=int, default=400)
@@ -29,31 +37,75 @@ class BSNTrainer(Trainer):
         self._parser.add_argument("--weight_decay", type=float, default=1e-3)
         self._parser.add_argument("--num_workers", type=int, default=16)
 
-
-    def _get_dataloader(self) -> DataLoader:
-        self.dataset = ActivityNetDataset.get_ltw_feature_dataset(self.cfg.csv_path, self.cfg.json_path,
+    def _get_dataloaders(self) -> Tuple[DataLoader, DataLoader]:
+        self.train_dataset = ActivityNetDataset.get_ltw_feature_dataset(self.cfg.csv_path, self.cfg.json_path,
                                                                   self.cfg.video_info_new_csv_path,
                                                                   self.cfg.class_name_path, 'training')
 
-        data_loader = DataLoader(self.dataset, batch_size=self.cfg.batch_size, shuffle=True, num_workers=self.cfg.num_workers)
-        return data_loader
+        self.val_dataset = ActivityNetDataset.get_ltw_feature_dataset(self.cfg.csv_path, self.cfg.json_path,
+                                                                        self.cfg.video_info_new_csv_path,
+                                                                        self.cfg.class_name_path, 'validation')
 
-    def _train_one_epoch(self, data_loader: DataLoader, epoch: int, optimizer: Optimizer):
+        train_data_loader = DataLoader(self.train_dataset, batch_size=self.cfg.batch_size, shuffle=True, num_workers=self.cfg.num_workers)
+        val_data_loader = DataLoader(self.val_dataset, batch_size=self.cfg.batch_size, shuffle=False, num_workers=self.cfg.num_workers)
 
-        for idx, (batch_feature, batch_proposals) in enumerate(data_loader):
+        return train_data_loader, val_data_loader
+
+    def _train_one_epoch(self, data_loaders: Tuple[DataLoader, DataLoader], epoch: int, optimizer: Optimizer):
+        statistic = Statistic()
+        train_dataloader, val_dataloader = data_loaders
+
+        # train model
+        self.model.train()
+        for idx, (batch_feature, batch_proposals) in enumerate(train_dataloader):
             batch_feature = batch_feature.cuda()
             batch_proposals = batch_proposals.cuda()
             self.optimizer.zero_grad()
             batch_pred = self.model(batch_feature)
             loss_start, loss_action, loss_end = self.loss(batch_pred, batch_proposals)
             loss = (loss_start + 2 * loss_action + loss_end).mean()
+            statistic.update('train_loss', loss.item())
             loss.backward()
             optimizer.step(None)
 
             # if idx % 100 == 0:
             #     print("epoch {}, iter {}: loss {}".format(epoch, idx, loss))
 
-        print("epoch {}: loss start {}, action {}, end {}".format(epoch, loss_start, loss_action, loss_end))
+        # validate model
+        self.model.eval()
+        for idx, (batch_feature, batch_proposals) in enumerate(val_dataloader):
+            batch_feature = batch_feature.cuda()
+            batch_proposals = batch_proposals.cuda()
+
+            batch_pred = self.model(batch_feature)
+            loss_start, loss_action, loss_end = self.loss(batch_pred, batch_proposals)
+            loss: torch.Tensor = (loss_start + 2 * loss_action + loss_end).mean()
+            statistic.update('val_loss', loss.item())
+
+        print("epoch {}: {}".format(epoch, statistic.format()))
+        self.save_state(epoch)
+
+    def save_state(self, epoch, prefix='model', root='/tmp/'):
+        model_state = self.model.state_dict()
+        optimizer_state = self.optimizer.state_dict()
+
+        model_name = '{}_{}.pth'.format(prefix, epoch)
+        model_path = os.path.join(root, model_name)
+        torch.save({'model_state': model_state, 'optimizer_state': optimizer_state}, model_path)
+        with open('{}_model_info.txt'.format(prefix), 'w') as f:
+            f.write(model_path)
+
+    def load_state(self, prefix='model', root='/tmp/'):
+
+        # Get the last epoch model.
+        model_info_path = os.path.join(root, '{}_model_info.txt'.format(prefix))
+        with open(model_info_path) as f:
+            model_path = f.read()
+
+        state_dicts = torch.load(model_path)
+
+        self.model.state_dict = state_dicts["model_state"]
+        self.optimizer.state_dict = state_dicts["model_state"]
 
 
 if __name__ == '__main__':
