@@ -1,7 +1,3 @@
-from glob import glob
-import re
-import os
-
 from typing import Tuple
 import torch
 from torch.utils.data import DataLoader
@@ -10,20 +6,19 @@ from action_proposals.trainer import Trainer
 from action_proposals.dataset.activitynet_dataset import ActivityNetDataset
 
 from action_proposals.models.bsn import Tem, TemLoss
-from action_proposals.utils import Statistic
+from action_proposals.utils import Statistic, cover_args_by_yml
 
 
-class BSNTrainer(Trainer):
+class TemTrainer(Trainer):
 
     def _get_optimizer(self) -> Optimizer:
         optimizer = Adam(self.model.parameters(), lr=self.cfg.learning_rate, weight_decay=self.cfg.weight_decay)
         return optimizer
 
     def __init__(self):
-        super(BSNTrainer, self).__init__()
+        super(TemTrainer, self).__init__()
         self.model = Tem(self.cfg.input_features)
         self.loss = TemLoss()
-
         self.model = self.model.cuda()
 
     def _add_user_config(self):
@@ -37,17 +32,20 @@ class BSNTrainer(Trainer):
         self._parser.add_argument("--weight_decay", type=float, default=1e-3)
         self._parser.add_argument("--num_workers", type=int, default=16)
 
+
     def _get_dataloaders(self) -> Tuple[DataLoader, DataLoader]:
         self.train_dataset = ActivityNetDataset.get_ltw_feature_dataset(self.cfg.csv_path, self.cfg.json_path,
-                                                                  self.cfg.video_info_new_csv_path,
-                                                                  self.cfg.class_name_path, 'training')
+                                                                        self.cfg.video_info_new_csv_path,
+                                                                        self.cfg.class_name_path, 'training')
 
         self.val_dataset = ActivityNetDataset.get_ltw_feature_dataset(self.cfg.csv_path, self.cfg.json_path,
-                                                                        self.cfg.video_info_new_csv_path,
-                                                                        self.cfg.class_name_path, 'validation')
+                                                                      self.cfg.video_info_new_csv_path,
+                                                                      self.cfg.class_name_path, 'validation')
 
-        train_data_loader = DataLoader(self.train_dataset, batch_size=self.cfg.batch_size, shuffle=True, num_workers=self.cfg.num_workers)
-        val_data_loader = DataLoader(self.val_dataset, batch_size=self.cfg.batch_size, shuffle=False, num_workers=self.cfg.num_workers)
+        train_data_loader = DataLoader(self.train_dataset, batch_size=self.cfg.batch_size, shuffle=True,
+                                       num_workers=self.cfg.num_workers)
+        val_data_loader = DataLoader(self.val_dataset, batch_size=self.cfg.batch_size, shuffle=False,
+                                     num_workers=self.cfg.num_workers)
 
         return train_data_loader, val_data_loader
 
@@ -83,31 +81,9 @@ class BSNTrainer(Trainer):
             statistic.update('val_loss', loss.item())
 
         print("epoch {}: {}".format(epoch, statistic.format()))
-        self.save_state(epoch)
-
-    def save_state(self, epoch, prefix='model', root='/tmp/'):
-        model_state = self.model.state_dict()
-        optimizer_state = self.optimizer.state_dict()
-
-        model_name = '{}_{}.pth'.format(prefix, epoch)
-        model_path = os.path.join(root, model_name)
-        torch.save({'model_state': model_state, 'optimizer_state': optimizer_state}, model_path)
-        with open('{}_model_info.txt'.format(prefix), 'w') as f:
-            f.write(model_path)
-
-    def load_state(self, prefix='model', root='/tmp/'):
-
-        # Get the last epoch model.
-        model_info_path = os.path.join(root, '{}_model_info.txt'.format(prefix))
-        with open(model_info_path) as f:
-            model_path = f.read()
-
-        state_dicts = torch.load(model_path)
-
-        self.model.state_dict = state_dicts["model_state"]
-        self.optimizer.state_dict = state_dicts["model_state"]
+        self.save_state(epoch, self.cfg.save_root)
 
 
 if __name__ == '__main__':
-    bsn_trainer = BSNTrainer()
+    bsn_trainer = TemTrainer()
     bsn_trainer.train()
