@@ -7,7 +7,7 @@ num_workers: 16
 
 # model save and load
 save_root: './models'
-continue_train: true
+#continue_train: true
 
 # train
 input_features: 400

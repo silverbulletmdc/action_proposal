@@ -32,7 +32,6 @@ class TemTrainer(Trainer):
         self._parser.add_argument("--weight_decay", type=float, default=1e-3)
         self._parser.add_argument("--num_workers", type=int, default=16)
 
-
     def _get_dataloaders(self) -> Tuple[DataLoader, DataLoader]:
         self.train_dataset = ActivityNetDataset.get_ltw_feature_dataset(self.cfg.csv_path, self.cfg.json_path,
                                                                         self.cfg.video_info_new_csv_path,
@@ -55,7 +54,7 @@ class TemTrainer(Trainer):
 
         # train model
         self.model.train()
-        for idx, (batch_feature, batch_proposals) in enumerate(train_dataloader):
+        for idx, (batch_feature, batch_proposals, _) in enumerate(train_dataloader):
             batch_feature = batch_feature.cuda()
             batch_proposals = batch_proposals.cuda()
             self.optimizer.zero_grad()
@@ -71,7 +70,7 @@ class TemTrainer(Trainer):
 
         # validate model
         self.model.eval()
-        for idx, (batch_feature, batch_proposals) in enumerate(val_dataloader):
+        for idx, (batch_feature, batch_proposals, _) in enumerate(val_dataloader):
             batch_feature = batch_feature.cuda()
             batch_proposals = batch_proposals.cuda()
 

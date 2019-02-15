@@ -32,7 +32,7 @@ class VideoRecord:
     """
 
     def __init__(self, video_name: str = '', frame_path: str = '', duration: int = 0, fps: float = 0,
-                 annotations: List[AnnotationRecord] = None, url: str = '', frames: int = 0):
+                 annotations: List[AnnotationRecord] = None, url: str = '', frames: int = 0, idx: int = 0):
         self.video_name = video_name
         self.frame_path = frame_path
         self.duration = duration
@@ -40,6 +40,7 @@ class VideoRecord:
         self.fps = fps
         self.annotations = annotations
         self.url = url
+        self.idx = idx
 
 
 class VideoRecordHandler:

@@ -37,6 +37,7 @@ class ActivityNetDataset(TemporalActionProposalDataset):
             video_json: dict = json.load(f)
 
         video_records = []
+        idx = 0
         for i in range(len(df)):
             if df.subset.values[i] == self._subset:
                 video_name = df.video.values[i]
@@ -51,8 +52,10 @@ class ActivityNetDataset(TemporalActionProposalDataset):
                                            video_info['feature_frame'] / video_info['duration_second'],
                                            proposals,
                                            'https://www.youtube.com/watch?v=' + video_name[2:],
-                                           video_info['duration_frame']
+                                           video_info['duration_frame'],
+                                           idx
                                            )
+                idx += 1
                 video_records.append(video_record)
 
         return video_records
@@ -66,6 +69,7 @@ class ActivityNetDataset(TemporalActionProposalDataset):
         :param json_path: annotation json file
         :param class_name_path: class name file
         :param subset: training, validation and testing
+        :param return_video_info: whether or not return video info
         :return:
         """
         video_record_handler = BSNVideoRecordHandler(csv_path, class_name_path)

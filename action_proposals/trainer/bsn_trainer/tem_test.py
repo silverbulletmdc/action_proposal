@@ -1,12 +1,13 @@
 from action_proposals.models.bsn import Tem
 from action_proposals.dataset.activitynet_dataset import ActivityNetDataset
-from action_proposals.utils import cover_args_by_yml
+from action_proposals.utils import cover_args_by_yml, mkdir_p
 import argparse
 import torch
 from torch.utils.data import DataLoader
 import os
 import pickle
 import numpy as np
+
 
 def main():
     # 解析参数
@@ -50,10 +51,12 @@ def main():
 
     train_results = np.concatenate(results)
 
+    mkdir_p(os.path.split(cfg.tem_results_file)[0])
+
     with open(cfg.tem_results_file, 'wb') as f:
         results = {
-            "train": train_results,
-            "val": val_results
+            "training": train_results,
+            "validation": val_results
         }
         pickle.dump(results, f)
 
