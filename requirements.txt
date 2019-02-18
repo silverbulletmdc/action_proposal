@@ -1,4 +1,6 @@
 ruamel.yaml
+pandas
+scipy
 torch
 torchvision
 numpy

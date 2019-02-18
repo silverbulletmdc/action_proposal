@@ -1,18 +1,22 @@
 import pickle
 import argparse
+import os
+import multiprocessing as mp
 import numpy as np
-
+import pandas as pd
+import time
 from action_proposals.dataset import VideoRecord
 from action_proposals.dataset.temporal_dataset import VideoRecordHandler
 from action_proposals.dataset.activitynet_dataset import ActivityNetDataset
-from action_proposals.utils import cover_args_by_yml
+from action_proposals.utils import cover_args_by_yml, ioa_with_anchors, iou_with_anchors, mkdir_p
 
 
 def generate_proposals(scores: np.ndarray, video_record: VideoRecord) -> np.ndarray:
     r"""
 
     :param scores: [3, L], start, action, end
-    :return: [2, N], proposals
+    :param video_record: video information
+    :return: [N, 7], proposals. start, end, start score, end score, score, iou, ioa.
     """
     peak_thres = 0.5
 
@@ -24,23 +28,61 @@ def generate_proposals(scores: np.ndarray, video_record: VideoRecord) -> np.ndar
     start_bins = np.zeros_like(start_scores)
     start_bins[[0, -1]] = 1
     start_bins[1:-1] = np.logical_and(start_scores[1:-1] > start_scores[2:], start_scores[1:-1] > start_scores[:-2])
-    start_bins = np.logical_and(start_bins, start_scores > (peak_thres * max_start))
+    start_bins = np.logical_or(start_bins, start_scores > (peak_thres * max_start))
 
     end_bins = np.zeros_like(end_scores)
     end_bins[[0, -1]] = 1
     end_bins[1:-1] = np.logical_and(end_scores[1:-1] > end_scores[2:], end_scores[1:-1] > end_scores[:-2])
-    end_bins = np.logical_and(end_bins, end_scores > (peak_thres * max_end))
+    end_bins = np.logical_or(end_bins, end_scores > (peak_thres * max_end))
 
     # Get start and end indexes and their scores.
-    xmin_list = np.nonzero(start_bins)
+    xmin_list = np.nonzero(start_bins)[0]
     xmin_score_list = start_scores[xmin_list]
 
-    xmax_list = np.nonzero(end_bins)
+    xmax_list = np.nonzero(end_bins)[0]
     xmax_score_list = end_scores[xmax_list]
 
+    # Generate props
+    new_props = []
+    for i in range(len(xmax_list)):
+        tmp_xmax = xmax_list[i]
+        tmp_xmax_score = xmax_score_list[i]
 
+        for j in range(len(xmin_list)):
+            tmp_xmin = xmin_list[j]
+            tmp_xmin_score = xmin_score_list[j]
 
-    return scores
+            if tmp_xmin >= tmp_xmax:
+                break
+            new_props.append([tmp_xmin/100.0 + 0.005, tmp_xmax/100.0 + 0.005, tmp_xmin_score, tmp_xmax_score])
+
+    new_props = np.stack(new_props)
+
+    # calc IoU and IoA
+    gt_xmins = []
+    gt_xmaxs = []
+    for ann in video_record.annotations:
+        gt_xmins.append(ann.start_time/video_record.duration)
+        gt_xmaxs.append(ann.end_time/video_record.duration)
+
+    new_iou_list = []
+    for i, prop in enumerate(new_props):
+        tmp_new_iou = max(iou_with_anchors(prop[0], prop[1], gt_xmins, gt_xmaxs))
+        new_iou_list.append(tmp_new_iou)
+
+    new_ioa_list = []
+    for i, prop in enumerate(new_props):
+        tmp_new_ioa = max(ioa_with_anchors(prop[0], prop[1], gt_xmins, gt_xmaxs))
+        new_ioa_list.append(tmp_new_ioa)
+
+    score = new_props[:, 2] * new_props[:, 3]
+    stack_ = np.stack([score, new_iou_list, new_ioa_list]).T
+    results = np.concatenate([new_props, stack_], axis=1)
+
+    # sort by scores
+    results = results[np.argsort(results[:, 4], )[::-1], :]
+
+    return results
 
 
 class TemHandler(VideoRecordHandler):
@@ -66,6 +108,14 @@ def get_tem_dataset(tem_results_file: str, json_path: str, video_info_new_csv_pa
                               video_record_handler=video_record_handler, subset=subset)
 
 
+def sub_proc(q: mp.Queue, cfg: argparse.Namespace):
+    while True:
+        scores, video_record = q.get(block=True)
+        proposals = generate_proposals(scores, video_record)
+        df = pd.DataFrame(proposals, columns=["xmin", "xmax", "xmin_score", "xmax_score", "score", "match_iou", "match_ioa"])
+        df.to_csv(os.path.join(cfg.proposal_csv_path, "{}.csv".format(video_record.video_name)), index=False)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--yml_cfg_file", type=str, default="bsn_config.yml")
@@ -73,22 +123,29 @@ def main():
     cover_args_by_yml(cfg, cfg.yml_cfg_file)
     train_dataset = get_tem_dataset(cfg.tem_results_file, cfg.json_path, cfg.video_info_new_csv_path, "training")
     val_dataset = get_tem_dataset(cfg.tem_results_file, cfg.json_path, cfg.video_info_new_csv_path, "validation")
+    mkdir_p(cfg.proposal_csv_path)
 
+    # prepare workers
+    queue = mp.Queue()
+    process_pool = []
+    for i in range(cfg.proposal_workers):
+        proc = mp.Process(target=sub_proc, args=(queue, cfg))
+        proc.start()
+        process_pool.append(proc)
+
+    # feed datas
     for i, (scores, video_record) in enumerate(train_dataset):
-        generate_proposals(scores, video_record)
-        print(i)
-        print(scores.shape)
-        print(video_record.video_name)
+        queue.put((scores, video_record))
 
+    for i, (scores, video_record) in enumerate(val_dataset):
+        queue.put((scores, video_record))
 
-
-
-
-
-
-
-
-
+    t = 0
+    while not queue.empty():
+        remain = queue.qsize()
+        print("Time: {}s, remain {} videos to be handled.".format(t, remain))
+        time.sleep(1)
+        t += 1
 
 
 if __name__ == '__main__':

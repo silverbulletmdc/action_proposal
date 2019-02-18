@@ -6,7 +6,7 @@ video_info_new_csv_path: '/home/dechao_meng/datasets/activitynet/annotations/vid
 num_workers: 16
 
 # model save and load
-save_root: './models'
+save_root: '/home/dechao_meng/.action_proposals/models'
 #continue_train: true
 
 # train
@@ -17,4 +17,12 @@ batch_size: 16
 weight_decay: 1e-3
 
 # test
-tem_results_file: './results/tem_results.pkl'
+tem_results_file: '/home/dechao_meng/.action_proposals/results/tem_results.pkl'
+
+# proposal generate
+proposal_csv_path: '/home/dechao_meng/.action_proposals/results/pgm_proposals'
+proposal_workers: 16
+
+# feature generate
+pgm_feature_path: '/home/dechao_meng/.action_proposals/results/pgm_features'
+pgm_feature_workers: 16

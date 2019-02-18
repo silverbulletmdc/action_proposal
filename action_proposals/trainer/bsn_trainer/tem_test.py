@@ -16,7 +16,6 @@ def main():
     cfg = parser.parse_args()
     cover_args_by_yml(cfg, cfg.yml_cfg_file)
 
-
     # 加载模型
     tem_model = Tem(cfg.input_features)
     model_info_path = os.path.join(cfg.save_root, 'model_model_info.txt')
