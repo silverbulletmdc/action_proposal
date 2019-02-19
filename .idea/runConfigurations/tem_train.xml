@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="bsn_train" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="tem_train" type="PythonConfigurationType" factoryName="Python">
     <module name="action-proposal" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -10,7 +10,7 @@
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
     <option name="SCRIPT_NAME" value="$PROJECT_DIR$/action_proposals/trainer/bsn_trainer/tem_train.py" />
-    <option name="PARAMETERS" value="--yml_cfg_file ./bsn_config.yml" />
+    <option name="PARAMETERS" value="" />
     <option name="SHOW_COMMAND_LINE" value="true" />
     <option name="EMULATE_TERMINAL" value="false" />
     <option name="MODULE_MODE" value="false" />

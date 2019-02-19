@@ -6,7 +6,8 @@ import urllib.request as urllib2
 
 import numpy as np
 import argparse
-from ruamel import yaml
+from easydict import EasyDict as edict
+from action_proposals.utils.ap_yaml import my_safe_load
 from typing import Union, List, Tuple
 ArrayLike = Union[np.ndarray, List, Tuple]
 
@@ -21,19 +22,17 @@ def mkdir_p(path):
             raise
 
 
-def cover_args_by_yml(args: argparse.Namespace, yml_file_path: str):
-    r"""Cover the args parsed by argparse using yaml file. It will ignore the argument passed by command line if the
-    same arg is provided in yaml file.
+def load_yml(yml_file_path: str) -> edict:
+    r"""Load a yml file and return an EasyDict Object.
 
-    :param args: the return value of parser.parse_args()
     :param yml_file_path: The path of config yaml file
-    :return: None. But the state of args will be changed.
+    :return: Easydict. But the state of args will be changed.
     """
     with open(yml_file_path) as f:
-        file_cfgs = yaml.safe_load(f)
-    for arg_name in file_cfgs.keys():
-        if arg_name in file_cfgs.keys():
-            args.__setattr__(arg_name, file_cfgs[arg_name])
+        file_cfgs = my_safe_load(f)
+
+    return edict(file_cfgs)
+
 
 
 def ioa_with_anchors(prop_xmin: float, prop_xmax: float, gt_xmins: ArrayLike, gt_xmaxs: ArrayLike):
@@ -78,3 +77,56 @@ def iou_with_anchors(prop_xmin: float, prop_xmax: float, gt_xmins: ArrayLike, gt
 
     return iou
 
+
+def IOU(s1: float, e1: float, s2: float, e2: float):
+    """
+    Calc IOU of two segments.
+
+    :param s1:
+    :param e1:
+    :param s2:
+    :param e2:
+    :return:
+    """
+    if (s2 > e1) or (s1 > e2):
+        return 0
+    Aor = max(e1, e2) - min(s1, s2)
+    Aand = min(e1, e2) - max(s1, s2)
+    return float(Aand) / Aor
+
+
+def soft_nms(props: np.ndarray) -> np.ndarray:
+    r"""Applying soft NMS to proposals.
+
+    :param props: [N, 3], start, end, score
+    :return: [N, 3], Recalc the scores.
+    """
+    # props = props[np.argsort(props[:, 2])]
+
+    # 考虑到会有很多删除操作，用list比ndarray更高效
+    tstart = list(props[:, 0])
+    tend = list(props[:, 1])
+    tscore = list(props[:, 2])
+
+    rstart = []
+    rend = []
+    rscore = []
+
+    while len(tscore) > 1 and len(rscore) < 101:
+        max_index = tscore.index(max(tscore))
+        for idx in range(0, len(tscore)):
+            if idx != max_index:
+                tmp_iou = IOU(tstart[max_index], tend[max_index], tstart[idx], tend[idx])
+                tmp_width = tend[max_index] - tstart[max_index]
+
+                if tmp_iou > 0.65 + 0.25 * tmp_width:  # *1/(1+np.exp(-max_index)):
+                    tscore[idx] = tscore[idx] * np.exp(-np.square(tmp_iou) / 0.75)
+
+        rstart.append(tstart[max_index])
+        rend.append(tend[max_index])
+        rscore.append(tscore[max_index])
+        tstart.pop(max_index)
+        tend.pop(max_index)
+        tscore.pop(max_index)
+
+    return np.stack([rstart, rend, rscore]).T

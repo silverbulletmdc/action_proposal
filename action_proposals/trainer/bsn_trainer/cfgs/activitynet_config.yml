@@ -1,0 +1,4 @@
+csv_path: '/home/dechao_meng/datasets/activitynet/csv_mean_100'
+json_path: '/home/dechao_meng/datasets/activitynet/annotations/anet_anno_action.json'
+class_name_path: '/home/dechao_meng/datasets/activitynet/annotations/action_name.csv'
+video_info_new_csv_path: '/home/dechao_meng/datasets/activitynet/annotations/video_info_new.csv'

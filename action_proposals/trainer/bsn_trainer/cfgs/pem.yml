@@ -1,0 +1,24 @@
+# activitynet dataset
+anet_dataset: !include activitynet_config.yml
+pgm: !include pgm_ltw.yml
+#pgm: !include pgm_config.yml
+
+num_workers: 16
+
+# model save and load
+epochs: 20
+save_root: '/home/dechao_meng/.action_proposals/models/pem'
+continue_train: false
+
+# train
+input_features: 400
+learning_rate: 1e-3
+batch_size: 16
+weight_decay: 2e-3
+
+# test
+pem_csv_dir: '/home/dechao_meng/.action_proposals/results/pem_csv'
+
+# post processing
+results_json: '/home/dechao_meng/.action_proposals/results/results.json'
+pp_workers: 25

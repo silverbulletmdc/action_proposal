@@ -1,0 +1,7 @@
+# proposal generate
+proposal_csv_path: '/home/dechao_meng/pycharm_romote/bsn/output/PGM_proposals'
+proposal_workers: 16
+
+# feature generate
+pgm_feature_path: '/home/dechao_meng/pycharm_romote/bsn/output/PGM_feature'
+pgm_feature_workers: 16

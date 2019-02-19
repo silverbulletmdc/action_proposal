@@ -16,5 +16,5 @@ class Statistic():
         for name in self.datas:
             data = self.datas[name]
             mean = np.mean(data)
-            format_str += '{} mean:{:.2f} '.format(name, mean)
+            format_str += '{} mean:{:.5f} '.format(name, mean)
         return format_str

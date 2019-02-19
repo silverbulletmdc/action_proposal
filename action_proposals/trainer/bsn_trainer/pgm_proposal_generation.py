@@ -8,8 +8,7 @@ import time
 from action_proposals.dataset import VideoRecord
 from action_proposals.dataset.temporal_dataset import VideoRecordHandler
 from action_proposals.dataset.activitynet_dataset import ActivityNetDataset
-from action_proposals.utils import cover_args_by_yml, ioa_with_anchors, iou_with_anchors, mkdir_p
-
+from action_proposals.utils import load_yml, ioa_with_anchors, iou_with_anchors, mkdir_p, log
 
 def generate_proposals(scores: np.ndarray, video_record: VideoRecord) -> np.ndarray:
     r"""
@@ -113,25 +112,27 @@ def sub_proc(q: mp.Queue, cfg: argparse.Namespace):
         scores, video_record = q.get(block=True)
         proposals = generate_proposals(scores, video_record)
         df = pd.DataFrame(proposals, columns=["xmin", "xmax", "xmin_score", "xmax_score", "score", "match_iou", "match_ioa"])
-        df.to_csv(os.path.join(cfg.proposal_csv_path, "{}.csv".format(video_record.video_name)), index=False)
+        df.to_csv(os.path.join(cfg.pgm.proposal_csv_path, "{}.csv".format(video_record.video_name)), index=False)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--yml_cfg_file", type=str, default="bsn_config.yml")
-    cfg = parser.parse_args()
-    cover_args_by_yml(cfg, cfg.yml_cfg_file)
-    train_dataset = get_tem_dataset(cfg.tem_results_file, cfg.json_path, cfg.video_info_new_csv_path, "training")
-    val_dataset = get_tem_dataset(cfg.tem_results_file, cfg.json_path, cfg.video_info_new_csv_path, "validation")
-    mkdir_p(cfg.proposal_csv_path)
+    parser.add_argument("--yml_cfg_file", type=str, default="./cfgs/tem.yml")
+    args = parser.parse_args()
+    cfg = load_yml(args.yml_cfg_file)
+
+    anet = cfg.anet_dataset
+    train_dataset = get_tem_dataset(cfg.tem_results_file, anet.json_path, anet.video_info_new_csv_path, "training")
+    val_dataset = get_tem_dataset(cfg.tem_results_file, anet.json_path, anet.video_info_new_csv_path, "validation")
+    mkdir_p(cfg.pgm.proposal_csv_path)
 
     # prepare workers
     queue = mp.Queue()
-    process_pool = []
-    for i in range(cfg.proposal_workers):
+    procs = []
+    for i in range(cfg.pgm.proposal_workers):
         proc = mp.Process(target=sub_proc, args=(queue, cfg))
         proc.start()
-        process_pool.append(proc)
+        procs.append(proc)
 
     # feed datas
     for i, (scores, video_record) in enumerate(train_dataset):
@@ -143,10 +144,15 @@ def main():
     t = 0
     while not queue.empty():
         remain = queue.qsize()
-        print("Time: {}s, remain {} videos to be handled.".format(t, remain))
+        log.log_info("Time: {}s, remain {} videos to be handled.".format(t, remain))
         time.sleep(1)
         t += 1
 
+    log.log_info("All videos handled.")
+    for proc in procs:
+        proc.terminate()
+
 
 if __name__ == '__main__':
+    log.log_level = log.INFO
     main()

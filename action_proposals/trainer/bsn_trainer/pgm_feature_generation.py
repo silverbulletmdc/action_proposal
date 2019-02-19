@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 from action_proposals.dataset import VideoRecordHandler, VideoRecord, ActivityNetDataset
-from action_proposals.utils import cover_args_by_yml, mkdir_p
+from action_proposals.utils import load_yml, mkdir_p,log
 
 
 class PgmFeatureHandler(VideoRecordHandler):
@@ -145,28 +145,29 @@ def proc_cb(q: mp.Queue, cfg: argparse.Namespace, datasets):
         subset, idx = q.get()
         scores, video_record, proposals = datasets[subset][idx]
         bsp_features = generate_feature(scores, video_record, proposals, subset)
-        np.save(os.path.join(cfg.pgm_feature_path, video_record.video_name), bsp_features)
+        np.save(os.path.join(cfg.pgm.pgm_feature_path, video_record.video_name), bsp_features)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--yml_cfg_file", type=str, default="bsn_config.yml")
-    cfg = parser.parse_args()
-    cover_args_by_yml(cfg, cfg.yml_cfg_file)
+    parser.add_argument("--yml_cfg_file", type=str, default="./cfgs/tem.yml")
+    args = parser.parse_args()
+    cfg = load_yml(args.yml_cfg_file)
 
-    train_dataset = get_pgm_feature_dataset(cfg.tem_results_file, cfg.proposal_csv_path, cfg.json_path,
-                                            cfg.video_info_new_csv_path, "training")
-    val_dataset = get_pgm_feature_dataset(cfg.tem_results_file, cfg.proposal_csv_path, cfg.json_path,
-                                          cfg.video_info_new_csv_path, "validation")
+    anet = cfg.anet_dataset
+    train_dataset = get_pgm_feature_dataset(cfg.tem_results_file, cfg.pgm.proposal_csv_path, anet.json_path,
+                                            anet.video_info_new_csv_path, "training")
+    val_dataset = get_pgm_feature_dataset(cfg.tem_results_file, cfg.pgm.proposal_csv_path, anet.json_path,
+                                          anet.video_info_new_csv_path, "validation")
 
     queue = mp.Queue()
     procs = []
-    for i in range(cfg.pgm_feature_workers):
+    for i in range(cfg.pgm.pgm_feature_workers):
         proc = mp.Process(target=proc_cb, args=(queue, cfg, {"training": train_dataset, "validation": val_dataset}))
         procs.append(proc)
         proc.start()
 
-    mkdir_p(cfg.pgm_feature_path)
+    mkdir_p(cfg.pgm.pgm_feature_path)
     for i in range(len(train_dataset)):
         queue.put(('training', i))
 
@@ -175,9 +176,12 @@ def main():
 
     t = 0
     while not queue.empty():
-        print('{}s: Remain {} videos to be handled.'.format(t, queue.qsize()))
+        log.log_info('{}s: Remain {} videos to be handled.'.format(t, queue.qsize()))
         time.sleep(1)
         t += 1
+    log.log_warn("All video processed.")
+    for proc in procs:
+        proc.terminate()
 
 
 if __name__ == '__main__':
