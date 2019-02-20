@@ -41,7 +41,6 @@ class PemDatasetHandler(VideoRecordHandler):
                        torch.tensor(feature[:1000], dtype=torch.float32), video_record
 
 
-
 def pem_collate_cb(data):
     props = [item[0] for item in data]
     features = [item[1] for item in data]
@@ -49,6 +48,7 @@ def pem_collate_cb(data):
 
     props = torch.cat(props)
     features = torch.cat(features)
+    assert(props.shape[0] == features.shape[0])
     return props, features, lengths
 
 
@@ -61,8 +61,9 @@ def get_pem_dataset(proposal_csv_path: str, pgm_feature_path: str, json_path: st
 
 class PemTrainer(Trainer):
 
-    def __init__(self, yml_cfg_file):
-        super(PemTrainer, self).__init__(yml_cfg_file)
+    def __init__(self, cfg, trainer_cfg):
+        self.cfg = cfg
+        super(PemTrainer, self).__init__(trainer_cfg)
         self.model.cuda()
         self.loss.cuda()
 
@@ -72,8 +73,8 @@ class PemTrainer(Trainer):
         return [self.model, self.loss]
 
     def _get_optimizers(self) -> Iterable[Optimizer]:
-        self.optimizer = Adam(self.model.parameters(), lr=self.cfg.learning_rate,
-                              weight_decay=self.cfg.weight_decay)
+        self.optimizer = Adam(self.model.parameters(), lr=self.cfg.pem.learning_rate,
+                              weight_decay=self.cfg.pem.weight_decay)
         return [self.optimizer]
 
     def _add_user_config(self):
@@ -81,7 +82,7 @@ class PemTrainer(Trainer):
 
     def _get_dataloaders(self) -> Iterable[DataLoader]:
         cfg = self.cfg
-        anet = cfg.anet_dataset
+        anet = cfg.anet
         pgm = cfg.pgm
         self.train_dataset = train_dataset = get_pem_dataset(pgm.proposal_csv_path, pgm.pgm_feature_path, anet.json_path,
                                         anet.video_info_new_csv_path, "training")
@@ -89,10 +90,10 @@ class PemTrainer(Trainer):
         self.val_dataset = val_dataset = get_pem_dataset(pgm.proposal_csv_path, pgm.pgm_feature_path, anet.json_path,
                                       anet.video_info_new_csv_path, "validation")
 
-        self.train_loader = DataLoader(train_dataset, shuffle=True, num_workers=cfg.num_workers,
-                                       batch_size=cfg.batch_size, collate_fn=pem_collate_cb)
-        self.val_loader = DataLoader(val_dataset, shuffle=False, num_workers=cfg.num_workers,
-                                     batch_size=cfg.batch_size, collate_fn=pem_collate_cb)
+        self.train_loader = DataLoader(train_dataset, shuffle=True, num_workers=cfg.pem.num_workers,
+                                       batch_size=cfg.pem.batch_size, collate_fn=pem_collate_cb)
+        self.val_loader = DataLoader(val_dataset, shuffle=False, num_workers=cfg.pem.num_workers,
+                                     batch_size=cfg.pem.batch_size, collate_fn=pem_collate_cb)
         return [self.train_loader, self.val_loader]
 
     def _train_one_epoch(self, epoch: int):
@@ -101,7 +102,8 @@ class PemTrainer(Trainer):
 
         if epoch == 10:
             for param_group in self.optimizer.param_groups:
-                param_group['lr'] = self.cfg.learning_rate / 10
+                param_group['lr'] = self.cfg.pem.learning_rate / 10
+            log.log_info("The learning rate is adjusted in the beginning of epoch 10 ")
 
         t = time.time()
         for idx, (props, features, _) in enumerate(self.train_loader):
@@ -125,15 +127,16 @@ class PemTrainer(Trainer):
 
             # log.log_warn("Loss is None!")
             stat.update("val_loss", loss.item())
-        self.save_state(epoch, self.cfg.save_root)
+        self.save_state(epoch, self.cfg.pem.save_root)
         log.log_info("[{:.2}s] Epoch {}: {}".format(time.time() - t, epoch, stat.format()))
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--yml_cfg_file", default="./cfgs/pem.yml")
+    parser.add_argument("--yml_cfg_file", default="./cfgs/bsn.yml")
     args = parser.parse_args()
-    trainer = PemTrainer(args.yml_cfg_file)
+    cfg = load_yml(args.yml_cfg_file)
+    trainer = PemTrainer(cfg, cfg.pem)
     trainer.train()
 
 

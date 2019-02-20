@@ -14,7 +14,7 @@ class Pem(Module):
     def forward(self, batch_features: torch.Tensor) -> torch.Tensor:
         """Proposal Evaluate Module
 
-        :param batch_features: [P, 24]
+        :param batch_features: [P, 32]
         :return: scores. [P]
         """
         scores = torch.sigmoid(self.fc2(F.relu(self.fc1(batch_features))))
@@ -51,7 +51,7 @@ class PemLoss(Module):
             ratio_m = 1
         smmask = torch.rand(mmask.shape).type_as(gt_iou)
         smmask = smmask * mmask
-        smmask = (smmask > (1-ratio_m)).type_as(gt_iou)
+        smmask = (smmask > (1 - ratio_m)).type_as(gt_iou)
 
         ratio_l = 2 * num_h / num_l
         if ratio_l > 1:
@@ -65,4 +65,3 @@ class PemLoss(Module):
         gt_iou = gt_iou * iou_weights
 
         return self.sl1_loss(pred_scores, gt_iou)
-

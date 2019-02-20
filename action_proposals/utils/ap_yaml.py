@@ -1,3 +1,9 @@
+"""
+扩充了yaml的功能。
+    1. 支持 !include语法。 reference: https://stackoverflow.com/questions/528281/how-can-i-include-a-yaml-file-inside-another
+    2. 支持 !join语法。 reference: https://stackoverflow.com/questions/5484016/how-can-i-do-string-concatenation-or-string-replacement-in-yaml
+    3. 修复了自带yaml中加载浮点数的bug。（1e-3等无法被正确识别）
+"""
 import sys
 import os
 from ruamel import yaml
@@ -22,6 +28,14 @@ def yaml_include(loader, node):
         return my_safe_load(inputfile, master=loader)
 
 
+# define custom tag handler
+def join(loader, node):
+    seq = loader.construct_sequence(node)
+    return ''.join([str(i) for i in seq])
+
+
+# register the tag handler
+yaml.add_constructor('!join', join, Loader=yaml.SafeLoader)
 yaml.add_constructor("!include", yaml_include, Loader=yaml.SafeLoader)
 
 

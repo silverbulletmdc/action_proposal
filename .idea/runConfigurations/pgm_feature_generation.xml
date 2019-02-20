@@ -1,15 +1,15 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="tem_train" type="PythonConfigurationType" factoryName="Python">
+  <configuration default="false" name="pgm_feature_generation" type="PythonConfigurationType" factoryName="Python">
     <module name="action-proposal" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
-    <option name="SDK_HOME" value="sftp://dechao_meng@localhost:4444/home/dechao_meng/anaconda3/envs/action_proposal/bin/python" />
+    <option name="SDK_HOME" value="" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/action_proposals/trainer/bsn_trainer" />
-    <option name="IS_MODULE_SDK" value="false" />
+    <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
     <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/action_proposals/trainer/bsn_trainer/tem_train.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/action_proposals/trainer/bsn_trainer/pgm_feature_generation.py" />
     <option name="PARAMETERS" value="" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />

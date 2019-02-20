@@ -1,12 +1,17 @@
 import argparse
 import json
+import os
+import time
 import urllib.request as urllib2
+
+import matplotlib as mpl
+mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 
-from action_proposals.utils import load_yml
+from action_proposals.utils import load_yml, mkdir_p, log, send_mail
 
 API = 'http://ec2-52-11-11-89.us-west-2.compute.amazonaws.com/challenge17/api.py'
 
@@ -120,12 +125,12 @@ class ANETproposal(object):
         self.proposal = self._import_proposal(proposal_filename)
 
         if self.verbose:
-            print('[INIT] Loaded annotations from {} subset.'.format(subset))
+            log.log_info('[INIT] Loaded annotations from {} subset.'.format(subset))
             nr_gt = len(self.ground_truth)
-            print('\tNumber of ground truth instances: {}'.format(nr_gt))
+            log.log_info('\tNumber of ground truth instances: {}'.format(nr_gt))
             nr_pred = len(self.proposal)
-            print('\tNumber of proposals: {}'.format(nr_pred))
-            print('\tFixed threshold for tiou score: {}'.format(self.tiou_thresholds))
+            log.log_info('\tNumber of proposals: {}'.format(nr_pred))
+            log.log_info('\tFixed threshold for tiou score: {}'.format(self.tiou_thresholds))
 
     def _import_ground_truth(self, ground_truth_filename):
         """Reads ground truth file, checks if it is well formatted, and returns
@@ -222,9 +227,11 @@ class ANETproposal(object):
         area_under_curve = np.trapz(avg_recall, proposals_per_video)
 
         if self.verbose:
-            print('[RESULTS] Performance on ActivityNet proposal task.')
-            print(
+            log.log_info('[RESULTS] Performance on ActivityNet proposal task.')
+            log.log_info(
                 '\tArea Under the AR vs AN curve: {}%'.format(100. * float(area_under_curve) / proposals_per_video[-1]))
+
+            send_mail.send_mail("Result AUC is {}".format(100. * float(area_under_curve) / proposals_per_video[-1]))
 
         self.recall = recall
         self.avg_recall = avg_recall
@@ -375,7 +382,7 @@ def run_evaluation(ground_truth_filename, proposal_filename,
     return average_nr_proposals, average_recall, recall
 
 
-def plot_metric(average_nr_proposals, average_recall, recall, tiou_thresholds=np.linspace(0.5, 0.95, 10)):
+def plot_metric(average_nr_proposals, average_recall, recall, fig_save_path, tiou_thresholds=np.linspace(0.5, 0.95, 10)):
     fn_size = 14
     plt.figure(num=None, figsize=(6, 5))
     ax = plt.subplot(1, 1, 1)
@@ -397,6 +404,7 @@ def plot_metric(average_nr_proposals, average_recall, recall, tiou_thresholds=np
                 int(np.trapz(average_recall, average_nr_proposals) * 100) / 100.),
             linewidth=4, linestyle='-', marker=None)
 
+
     handles, labels = ax.get_legend_handles_labels()
     ax.legend([handles[-1]] + handles[:-1], [labels[-1]] + labels[:-1], loc='best')
 
@@ -406,22 +414,24 @@ def plot_metric(average_nr_proposals, average_recall, recall, tiou_thresholds=np
     plt.ylim([0, 1.0])
     plt.setp(plt.axes().get_xticklabels(), fontsize=fn_size)
     plt.setp(plt.axes().get_yticklabels(), fontsize=fn_size)
-
-    plt.show()
+    mkdir_p(os.path.split(fig_save_path)[0])
+    plt.savefig(fig_save_path)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("--yml_cfg_file", default="./anet_eval.yml")
+    parser.add_argument("--gt_cfg_file", default="/home/dechao_meng/datasets/activitynet/annotations/activity_net_1_3_new.json")
+    parser.add_argument("--yml_cfg_file", default="/tmp/pycharm_project_580/action_proposals/trainer/bsn_trainer/cfgs/bsn.yml")
     args = parser.parse_args()
     cfg = load_yml(args.yml_cfg_file)
+    fig_save_path = cfg.eval.results_json[:-5] + time.asctime() + '.png'
     uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid = run_evaluation(
-        cfg.gt_json_path,
-        cfg.eval_json_path,
+        args.gt_cfg_file,
+        cfg.eval.results_json,
         max_avg_nr_proposals=100,
         tiou_thresholds=np.linspace(0.5, 0.95, 10),
         subset='validation')
 
-    plot_metric(uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid)
+    plot_metric(uniform_average_nr_proposals_valid, uniform_average_recall_valid, uniform_recall_valid, fig_save_path)
 
 

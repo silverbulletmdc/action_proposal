@@ -1,0 +1,56 @@
+dataset: "activitynet"
+
+anet: !include activitynet_config.yml
+
+result_root: &result_root '/home/dechao_meng/.action_proposals/without_feature/'
+
+tem:
+  num_workers: 16
+
+  # model save and load
+  epochs: 20
+  save_root: !join [*result_root, 'models/tem']
+  continue_train: false
+
+  # train
+  input_features: 400
+  learning_rate: 1e-3
+  batch_size: 16
+  weight_decay: 2e-3
+
+  # test
+  tem_csv_dir: !join [*result_root, 'results/tem_csv']
+
+pgm:
+  # proposal generate
+  proposal_csv_path: "/home/dechao_meng/pycharm_romote/bsn/output/PGM_proposals"
+  proposal_workers: 16
+
+  # feature generate
+  pgm_feature_path: "/home/dechao_meng/pycharm_romote/bsn/output/PGM_feature"
+  pgm_feature_workers: 16
+
+pem:
+  num_workers: 16
+
+  # model save and load
+  epochs: 20
+  save_root: !join [*result_root, 'models/pem']
+  continue_train: false
+
+  # train
+  input_features: 400
+  learning_rate: 1e-3
+  batch_size: 16
+  weight_decay: 2e-3
+
+  # test
+  pem_csv_dir: !join [*result_root, 'results/pem_csv']
+
+  # post processing
+post_processing:
+  pp_workers: 25
+
+eval:
+  results_json: !join [*result_root, 'results/results.json']
+

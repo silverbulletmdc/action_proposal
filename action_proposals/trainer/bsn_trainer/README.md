@@ -1,8 +1,12 @@
 # Boundary Sensitive Network(BSN)
+We use the same data format as the original tf repo. 
+So that every module can compare or replace with it.
+
+The whole process will cost about 20 minutes.
 
 Execute this command to correctly setting the environment.
 ```bash
-export PYTHONPATH=[PROJECT PATH]:${PYTHONPATH}
+export PYTHONPATH=[PROJECT_PATH]:${PYTHONPATH}
 ```
 
 All the configs are in cfgs. Change essential config to run.
@@ -12,11 +16,15 @@ All the configs are in cfgs. Change essential config to run.
 python tem_trainer.py
 ```
 
+Train the TEM model. This process will cost 10 minutes.
 ## Tem Test
 
 ```bash
-python tem_test.py
+python tem_trainer.py --runtype test
 ```
+
+This file will generate tem results on training set and validation set,
+It will cost about 90s.
 
 ## Generate Proposal
 
@@ -25,7 +33,7 @@ python pgm_proposal_generation.py
 ```
 
 This file will run in multiprocess. The whole process will cost about
-50s. 
+100s. 
 
 ## Generate PGM Features
 
@@ -34,7 +42,7 @@ python pgm_feature_generation.py
 ```
 
 This file will run in multiprocess. The whole process will cost about
-30s. 
+50s. 
 
 ## Train PEM
 
@@ -44,9 +52,17 @@ This file will run in multiprocess. The whole process will cost about
  
 # Post processing
 
-This process will do soft nms
+This process will do soft nms to the proposals. This process will cost
+about 50s.
+
 ```bash
 python post_processing.py
 ```
 This file will run in multiprocess. The whole process will cost about
 180s. 
+
+# Eval
+
+```bash
+python ../../evaluate/anet_eval_proposals.py
+```

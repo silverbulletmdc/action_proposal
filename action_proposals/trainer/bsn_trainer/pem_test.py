@@ -2,8 +2,8 @@ import os
 
 import torch
 from torch.utils.data import DataLoader
-from action_proposals.utils import log, mkdir_p
-from pem_trainer import PemTrainer
+from action_proposals.utils import log, mkdir_p, load_yml
+from pem_train import PemTrainer
 import numpy as np
 import pandas as pd
 import argparse
@@ -21,13 +21,13 @@ def pem_collate_cb(data):
 
 
 class PemTester(PemTrainer):
-    def __init__(self, yml_cfg_file):
-        super(PemTester, self).__init__(yml_cfg_file)
+    def __init__(self, cfg, trainer_cfg):
+        super(PemTester, self).__init__(cfg, trainer_cfg)
         self.val_loader.collate_fn = pem_collate_cb
 
     def test(self):
-        mkdir_p(self.cfg.pem_csv_dir)
-        self.load_state(self.cfg.save_root)
+        mkdir_p(self.cfg.pem.pem_csv_dir)
+        self.load_state(self.cfg.pem.save_root)
         self.model.eval()
 
         for idx, (props, features, lengths, video_records) in enumerate(self.val_loader):
@@ -44,16 +44,18 @@ class PemTester(PemTrainer):
                 props = props[length:, :]
                 latent_df["iou_score"] = pred_scores[:length]
                 pred_scores = pred_scores[length:]
-                latent_df.to_csv(os.path.join(self.cfg.pem_csv_dir, "{}.csv".format(video_record.video_name)), index=False)
-            log.log_info("Handled {}/{} videos.".format(idx*self.cfg.batch_size, len(self.val_dataset)))
+                latent_df.to_csv(os.path.join(self.cfg.pem.pem_csv_dir, "{}.csv".format(video_record.video_name)), index=False)
+            log.log_info("Handled {}/{} videos.".format(idx * self.cfg.pem.batch_size, len(self.val_dataset)))
 
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--yml_cfg_file", default="./cfgs/pem.yml")
-    args = parser.parse_args()
-
     log.log_level = log.INFO
-    pem_tester = PemTester(args.yml_cfg_file)
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--yml_cfg_file", default="./cfgs/bsn.yml")
+    args = parser.parse_args()
+    cfg = load_yml(args.yml_cfg_file)
+
+    pem_tester = PemTester(cfg, cfg.pem)
     pem_tester.test()

@@ -92,7 +92,7 @@ class BSNVideoRecordHandler(VideoRecordHandler):
         self._feature_length = 400
         self._video_dict = {}
 
-    def __call__(self, video_record: VideoRecord) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __call__(self, video_record: VideoRecord) -> Tuple[torch.Tensor, torch.Tensor, VideoRecord]:
         """
         Given a video_record, return features and proposals.
 
@@ -150,4 +150,5 @@ class BSNVideoRecordHandler(VideoRecordHandler):
             # assert np.all(((proposals >= 0.5).sum(1) != 0).numpy())
             self._video_dict[video_record.video_name] = (feature, proposals)
 
-        return feature, proposals
+        return feature, proposals, video_record
+

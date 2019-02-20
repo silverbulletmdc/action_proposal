@@ -1,2 +1,0 @@
-gt_json_path: "/home/dechao_meng/datasets/activitynet/annotations/activity_net_1_3_new.json"
-eval_json_path: "/home/dechao_meng/.action_proposals/results/results.json"

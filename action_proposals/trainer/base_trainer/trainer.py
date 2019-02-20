@@ -20,9 +20,9 @@ class Trainer:
     You must provide epochs, continue_run, save_root in your cfg files.
     """
 
-    def __init__(self, yml_cfg_file):
-        self.cfg = load_yml(yml_cfg_file)
-        self.epochs: int = self.cfg.epochs
+    def __init__(self, trainer_cfg):
+        self._trainer_cfg = trainer_cfg
+        self.epochs: int = self._trainer_cfg.epochs
 
         self._data_loaders = self._get_dataloaders()
         self._models: Iterable[Module] = self._build_models()
@@ -38,10 +38,10 @@ class Trainer:
 
     def train(self):
         current_epoch = 0
-        if self.cfg.continue_train:
-            current_epoch = self.load_state(self.cfg.save_root) + 1
+        if self._trainer_cfg.continue_train:
+            current_epoch = self.load_state(self._trainer_cfg.save_root) + 1
 
-        for epoch in range(current_epoch, self.cfg.epochs):
+        for epoch in range(current_epoch, self._trainer_cfg.epochs):
             self._train_one_epoch(epoch)
 
     def save_state(self, epoch: int, root='/tmp/', prefix='model'):
