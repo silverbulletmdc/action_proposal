@@ -115,7 +115,8 @@ class PemTrainer(Trainer):
 
             # log.log_warn("Loss is None!")
             stat.update("train_loss", loss.item())
-            loss.backward()
+            cost = 10 * loss
+            cost.backward()
             self.optimizer.step(None)
 
         self.model.eval()

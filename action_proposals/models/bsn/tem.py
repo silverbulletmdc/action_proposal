@@ -21,7 +21,7 @@ class Tem(Module):
         super(Tem, self).__init__()
         self.conv1 = torch.nn.Conv1d(input_features, 512, 3, 1, 1)
         self.conv2 = torch.nn.Conv1d(512, 512, 3, 1, 1)
-        self.conv3 = torch.nn.Conv1d(512, 3, 3, 1, 1)
+        self.conv3 = torch.nn.Conv1d(512, 3, 1, 1, 0)
 
     def forward(self, x):
         """

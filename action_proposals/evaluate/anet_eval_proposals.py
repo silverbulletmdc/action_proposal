@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed
 
-from action_proposals.utils import load_yml, mkdir_p, log, send_mail
+from action_proposals.utils import load_yml, mkdir_p, log
 
 API = 'http://ec2-52-11-11-89.us-west-2.compute.amazonaws.com/challenge17/api.py'
 
@@ -231,7 +231,6 @@ class ANETproposal(object):
             log.log_info(
                 '\tArea Under the AR vs AN curve: {}%'.format(100. * float(area_under_curve) / proposals_per_video[-1]))
 
-            send_mail.send_mail("Result AUC is {}".format(100. * float(area_under_curve) / proposals_per_video[-1]))
 
         self.recall = recall
         self.avg_recall = avg_recall

@@ -8,8 +8,19 @@ import torch.nn.functional as F
 class Pem(Module):
     def __init__(self, in_features=32):
         super(Pem, self).__init__()
-        self.fc1 = torch.nn.Linear(in_features, 512)
-        self.fc2 = torch.nn.Linear(512, 1)
+        # self.fc1 = torch.nn.Linear(in_features, 512)
+        # self.fc1.weight = 0.1 * self.fc1.weight
+        #
+        # self.fc2 = torch.nn.Linear(512, 1)
+        # self.fc2.weight = 0.1 * self.fc1.weight
+        self.w1 = torch.nn.Parameter(torch.randn(32, 256))
+        self.w2 = torch.nn.Parameter(torch.randn(256, 1))
+        self.bias1 = torch.nn.Parameter(torch.randn(256))
+        self.bias2 = torch.nn.Parameter(torch.randn(1))
+        self.register_parameter("W1", self.w1)
+        self.register_parameter("W2", self.w2)
+        self.register_parameter("B1", self.bias1)
+        self.register_parameter("B2", self.bias2)
 
     def forward(self, batch_features: torch.Tensor) -> torch.Tensor:
         """Proposal Evaluate Module
@@ -17,7 +28,9 @@ class Pem(Module):
         :param batch_features: [P, 32]
         :return: scores. [P]
         """
-        scores = torch.sigmoid(self.fc2(F.relu(self.fc1(batch_features))))
+        # scores = torch.sigmoid(self.fc2(F.relu(self.fc1(batch_features))))
+        out1 = F.relu(0.1 * torch.matmul(batch_features, self.w1) + self.bias1)
+        scores = torch.sigmoid(0.1 * torch.matmul(out1, self.w2) + self.bias2)
         return torch.squeeze(scores)
 
 

@@ -2,7 +2,8 @@
 We use the same data format as the original tf repo. 
 So that every module can compare or replace with it.
 
-The whole process will cost about 20 minutes.
+The whole process will cost about 20 minutes. And the AUC is 66.27, which is 
+consist with the performance reported in the original paper.
 
 Execute this command to correctly setting the environment.
 ```bash

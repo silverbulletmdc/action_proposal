@@ -42,7 +42,7 @@ pem:
   input_features: 400
   learning_rate: 1e-3
   batch_size: 16
-  weight_decay: 2e-3
+  weight_decay: 2e-4
 
   # test
   pem_csv_dir: !join [*result_root, 'results/pem_csv']
