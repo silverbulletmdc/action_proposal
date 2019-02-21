@@ -57,3 +57,4 @@ eval:
 #  results_json: "/home/dechao_meng/pycharm_romote/bsn/output/result_proposal.json"
 #  results_json: "/home/dechao_meng/pycharm_romote/bsn/output/result_proposal.json"
 
+# mail: !include mail.yml

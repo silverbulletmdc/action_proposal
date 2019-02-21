@@ -10,8 +10,13 @@ mail_pass = "*"  # 口令
 sender = '*'
 receivers = ['*']  # 接收邮件，可设置为你的QQ邮箱或者其他邮箱
 
+def send_mail(content: str, cfg):
+    """
 
-def send_mail(content):
+    :param content: Mail content.
+    :param cfg: cfg is a easydict and provide mail_host, mail_user, mail_pass, sender, receivers.
+    :return:
+    """
     # 三个参数：第一个为文本内容，第二个 plain 设置文本格式，第三个 utf-8 设置编码
     message = MIMEText(content, 'plain', 'utf-8')
     message['From'] = Header("vipl server", 'utf-8')  # 发送者
@@ -21,6 +26,6 @@ def send_mail(content):
     message['Subject'] = Header(subject, 'utf-8')
 
     smtp_obj = smtplib.SMTP()
-    smtp_obj.connect(mail_host, 25)
-    smtp_obj.login(mail_user, mail_pass)
-    smtp_obj.sendmail(sender, receivers, message.as_string())
+    smtp_obj.connect(cfg.mail_host, 25)
+    smtp_obj.login(cfg.mail_user, cfg.mail_pass)
+    smtp_obj.sendmail(cfg.sender, cfg.receivers, message.as_string())
